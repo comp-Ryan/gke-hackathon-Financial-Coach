@@ -23,6 +23,15 @@ spec:
             secretKeyRef:
               name: gemini-secret
               key: api-key
+        - name: DB_PATH
+          value: /app/ai_agent.db
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        volumes:
+        - name: data
+          emptyDir: {}
+          
 ---
 apiVersion: v1
 kind: Service

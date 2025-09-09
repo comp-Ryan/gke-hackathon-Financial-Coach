@@ -1,13 +1,19 @@
-import os, requests
+import os, requests, re
 from flask import Flask, jsonify, request
 from gemini_client import GeminiClient
+from database import init_db, set_goal as db_set_goal, get_latest_goal, save_challenge
 
-# Simple in-memory storage (replace with database later)
-user_goals = {}
+def parse_goal(goal_text):
+    """Use Gemini AI to parse goal text"""
+    gemini = GeminiClient()
+    return gemini.parse_goal(goal_text)
 
 
 def create_app():
     app = Flask(__name__)
+    
+    # Initialize database on startup
+    init_db()
     
     @app.route('/ready', methods=['GET'])
     def readiness():
@@ -17,39 +23,58 @@ def create_app():
     def version():
         return os.environ.get('VERSION', '1.0.0'), 200
     
-    # NEW: Set user goal endpoint
+    # Set user goal endpoint - now with database
     @app.route('/goals/<user_id>', methods=['POST'])
     def set_goal(user_id):
         try:
-            goal_data = request.get_json()
-            goal = goal_data.get('goal', '')
+            goal_data = request.get_json(silent=True) or {}
+            goal_text = (goal_data.get('goal') or '').strip()
             
-            if not goal:
+            if not goal_text:
                 return jsonify({"error": "Goal is required"}), 400
             
-            # Store goal for user
-            user_goals[user_id] = {
-                'goal': goal,
-                'created_at': request.headers.get('X-Timestamp', 'unknown')
-            }
+            # Parse goal for frontend display
+            parsed_goal = parse_goal(goal_text)
+            
+            # Store goal in database
+            db_set_goal(user_id, goal_text)
             
             return jsonify({
                 "message": "Goal set successfully",
-                "goal": goal,
-                "user_id": user_id
+                "user_id": user_id,
+                "goal": goal_text,
+                "parsed_goal": parsed_goal
             }), 200
             
         except Exception as e:
             return jsonify({"error": f"Failed to set goal: {str(e)}"}), 500
     
-    # NEW: Get user goal endpoint
+    # Get user goal endpoint - now with database
     @app.route('/goals/<user_id>', methods=['GET'])
     def get_goal(user_id):
-        goal = user_goals.get(user_id)
-        if goal:
-            return jsonify(goal), 200
-        else:
-            return jsonify({"goal": None, "message": "No goal set"}), 200
+        try:
+            goal_row = get_latest_goal(user_id)
+            
+            if not goal_row:
+                return jsonify({
+                    "goal": None,
+                    "created_at": None,
+                    "status": None,
+                    "parsed_goal": None
+                }), 200
+            
+            # Parse goal for frontend display
+            parsed_goal = parse_goal(goal_row["goal_text"])
+            
+            return jsonify({
+                "goal": goal_row["goal_text"],
+                "created_at": goal_row["created_at"],
+                "status": goal_row["status"],
+                "parsed_goal": parsed_goal
+            }), 200
+            
+        except Exception as e:
+            return jsonify({"error": f"Failed to get goal: {str(e)}"}), 500
     
     @app.route('/challenges/<user_id>', methods=['GET'])
     def get_challenge(user_id):
@@ -70,8 +95,9 @@ def create_app():
 
             recent_transactions = transactions[:20]
 
-            # Get user's goal from storage
-            user_goal = user_goals.get(user_id, {}).get('goal', None)
+            # Get user's goal from database
+            goal_row = get_latest_goal(user_id)
+            user_goal = goal_row["goal_text"] if goal_row else None
 
             # Validate transaction data and calculate spending safely
             valid_transactions = [t for t in recent_transactions if isinstance(t, dict) and 'amount' in t]
@@ -87,6 +113,9 @@ def create_app():
             # Generate AI challenge with user's goal
             gemini = GeminiClient()
             challenge_data = gemini.generate_challenge(user_profile, user_goal)
+
+            # Save challenge to database
+            save_challenge(user_id, challenge_data)
 
             return jsonify({
                 "challenge": challenge_data["challenge"],
