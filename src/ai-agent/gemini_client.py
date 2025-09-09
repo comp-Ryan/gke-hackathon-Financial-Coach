@@ -129,3 +129,106 @@ class GeminiClient:
                 "goal_recommendation": "Understanding your spending is the first step to financial control",
                 "tips": ["Use a spending app", "Keep receipts", "Review daily"]
             }
+    
+    def parse_goal(self, goal_text):
+    """Use Gemini AI to parse goal text and extract structured information"""
+    try:
+        prompt = f"""
+        Parse this financial goal text and extract key information:
+        Goal: "{goal_text}"
+        
+        Return a JSON response with this exact structure:
+        {{
+            "amount": <number without $ symbol, or 0 if no amount found>,
+            "emoji": "<most relevant emoji for this goal, or 💰 if none found>",
+            "description": "<short description of what the goal is for, or 'goal' if unclear>",
+            "category": "<saving, investing, budgeting, debt, emergency, vacation, or general>",
+            "raw_text": "{goal_text}"
+        }}
+        
+        Examples:
+        - "Save $500 for vacation 🏖️" → {{"amount": 500, "emoji": "🏖️", "description": "vacation", "category": "vacation", "raw_text": "Save $500 for vacation 🏖️"}}
+        - "Build emergency fund 💪" → {{"amount": 0, "emoji": "💪", "description": "emergency fund", "category": "emergency", "raw_text": "Build emergency fund 💪"}}
+        - "Pay off credit card debt" → {{"amount": 0, "emoji": "💳", "description": "credit card debt", "category": "debt", "raw_text": "Pay off credit card debt"}}
+        """
+        
+        payload = {
+            "contents": [{
+                "parts": [{
+                    "text": prompt
+                }]
+            }]
+        }
+        
+        response = requests.post(
+            f"{self.base_url}/models/gemini-2.5-flash:generateContent?key={self.api_key}",
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            response_text = result["candidates"][0]["content"]["parts"][0]["text"]
+            
+            # Clean up the response text
+            response_text = response_text.strip()
+            if response_text.startswith("```json"):
+                response_text = response_text[7:]
+            if response_text.endswith("```"):
+                response_text = response_text[:-3]
+            response_text = response_text.strip()
+            
+            parsed_goal = json.loads(response_text)
+            return parsed_goal
+        else:
+            self.logger.error(f"Gemini API error for goal parsing: {response.text}")
+            return self._get_fallback_goal_parsing(goal_text)
+            
+    except Exception as e:
+        self.logger.error(f"Error parsing goal with Gemini: {e}")
+        return self._get_fallback_goal_parsing(goal_text)
+
+def _get_fallback_goal_parsing(self, goal_text):
+    """Fallback goal parsing if Gemini fails"""
+    import re
+    
+    # Extract amount
+    amount_match = re.search(r'\$([0-9,]+)', goal_text)
+    amount = int(amount_match.group(1).replace(',', '')) if amount_match else 0
+    
+    # Simple emoji detection
+    emoji_match = re.search(r'[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF]', goal_text)
+    emoji = emoji_match.group(0) if emoji_match else "💰"
+    
+    # Extract description
+    desc_patterns = [
+        r'for (\w+)', r'to (\w+)', r'towards (\w+)'
+    ]
+    description = "goal"
+    for pattern in desc_patterns:
+        match = re.search(pattern, goal_text, re.IGNORECASE)
+        if match:
+            description = match.group(1).strip()
+            break
+    
+    # Determine category
+    category = "general"
+    if "vacation" in goal_text.lower():
+        category = "vacation"
+    elif "emergency" in goal_text.lower():
+        category = "emergency"
+    elif "debt" in goal_text.lower():
+        category = "debt"
+    elif "invest" in goal_text.lower():
+        category = "investing"
+    elif "save" in goal_text.lower():
+        category = "saving"
+    
+    return {
+        "amount": amount,
+        "emoji": emoji,
+        "description": description,
+        "category": category,
+        "raw_text": goal_text
+    }
