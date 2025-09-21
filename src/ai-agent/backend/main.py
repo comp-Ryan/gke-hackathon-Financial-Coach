@@ -301,17 +301,17 @@ def create_app():
                 ]
                 print(f"DEBUG: Using fake balance: {balance}, fake transactions: {len(transactions)}")
             
-            # For demo purposes, if balance is 0 and user_id is '1011226111', give them some demo balance
-            if balance == 0 and user_id == '1011226111':
+            # For demo purposes, if balance is 0 and user_id is 'demo_user', give them some demo balance
+            if balance == 0 and user_id == 'demo_user':
                 balance = 1500.00  # Demo balance for testing
                 print(f"DEBUG: Setting demo balance for user {user_id}: {balance}")
 
-            # For demo purposes, if no transactions and user_id is '1011226111', add some demo transactions
-            if len(transactions) == 0 and user_id == '1011226111':
+            # For demo purposes, if no transactions and user_id is 'demo_user', add some demo transactions
+            if len(transactions) == 0 and user_id == 'demo_user':
                 transactions = [
-                    {"amount": 2500, "fromAccountNum": "1011226111", "toAccountNum": "1011226111", "description": "Initial deposit"},
-                    {"amount": -150, "fromAccountNum": "1011226111", "toAccountNum": "1011226112", "description": "Coffee purchase"},
-                    {"amount": -75, "fromAccountNum": "1011226111", "toAccountNum": "1011226113", "description": "Lunch"}
+                    {"amount": 2500, "fromAccountNum": "demo_user", "toAccountNum": "demo_user", "description": "Initial deposit"},
+                    {"amount": -150, "fromAccountNum": "demo_user", "toAccountNum": "1011226112", "description": "Coffee purchase"},
+                    {"amount": -75, "fromAccountNum": "demo_user", "toAccountNum": "1011226113", "description": "Lunch"}
                 ]
                 print(f"DEBUG: Setting demo transactions for user {user_id}: {len(transactions)} transactions")
 
@@ -457,17 +457,17 @@ def create_app():
                 ]
                 print(f"DEBUG: Using fake balance: {balance}, fake transactions: {len(transactions)}")
             
-            # For demo purposes, if balance is 0 and user_id is '1011226111', give them some demo balance
-            if balance == 0 and user_id == '1011226111':
+            # For demo purposes, if balance is 0 and user_id is 'demo_user', give them some demo balance
+            if balance == 0 and user_id == 'demo_user':
                 balance = 1500.00  # Demo balance for testing
                 print(f"DEBUG: Setting demo balance for user {user_id}: {balance}")
 
-            # For demo purposes, if no transactions and user_id is '1011226111', add some demo transactions
-            if len(transactions) == 0 and user_id == '1011226111':
+            # For demo purposes, if no transactions and user_id is 'demo_user', add some demo transactions
+            if len(transactions) == 0 and user_id == 'demo_user':
                 transactions = [
-                    {"amount": 2500, "fromAccountNum": "1011226111", "toAccountNum": "1011226111", "description": "Initial deposit"},
-                    {"amount": -150, "fromAccountNum": "1011226111", "toAccountNum": "1011226112", "description": "Coffee purchase"},
-                    {"amount": -75, "fromAccountNum": "1011226111", "toAccountNum": "1011226113", "description": "Lunch"}
+                    {"amount": 2500, "fromAccountNum": "demo_user", "toAccountNum": "demo_user", "description": "Initial deposit"},
+                    {"amount": -150, "fromAccountNum": "demo_user", "toAccountNum": "1011226112", "description": "Coffee purchase"},
+                    {"amount": -75, "fromAccountNum": "demo_user", "toAccountNum": "1011226113", "description": "Lunch"}
                 ]
                 print(f"DEBUG: Setting demo transactions for user {user_id}: {len(transactions)} transactions")
 

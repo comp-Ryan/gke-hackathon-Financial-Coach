@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: ai-agent
-        image: gcr.io/gke-turns-10-hackathon-471303/ai-agent:latest
+        image: your-registry/ai-agent:latest
         ports:
         - containerPort: 8080
         env:
