@@ -19,35 +19,29 @@ class GeminiClient:
         transaction_count = user_profile.get('transaction_count', 0)
         recent_spending = user_profile.get('recent_spending', 0)
 
-        prompt = f"""
-        Create a personalized financial challenge for a user with:
-        - Current balance: ${balance}
-        - Recent spending: ${recent_spending}
-        - Recent transactions: {transactions}
-        - Full transaction count: {transaction_count}
-        - User goal: {user_goal if user_goal else "No specific goal set"}
+        # Simplify transaction data to avoid token limits
+        recent_transactions_summary = f"{len(transactions)} recent transactions" if transactions else "No recent transactions"
+        if transactions and len(transactions) > 0:
+            # Show just the last 3 transactions with amounts
+            recent_3 = transactions[:3]
+            transaction_summary = ", ".join([f"${t.get('amount', 0):.2f}" for t in recent_3])
+            recent_transactions_summary = f"Recent amounts: {transaction_summary}"
 
-        Return a JSON response with this exact structure:
-        {{
-            "challenge": "Specific actionable challenge text",
-            "difficulty": "easy|medium|hard",
-            "category": "save_money|invest_money|spend_less|track_expenses|earn_more",
-            "xp_reward": 50,
-            "time_to_complete": "1 day|1 week|1 month",
-            "goal_recommendation": "How this challenge helps achieve their goal",
-            "tips": ["Tip 1", "Tip 2", "Tip 3"]
-        }}
+        prompt = f"""Create a fun, diverse financial challenge for someone with ${balance} balance, ${recent_spending} recent spending.
 
-        Categories:
-        - save_money: Challenges about building savings
-        - invest_money: Challenges about investing or growing money
-        - spend_less: Challenges about reducing expenses
-        - track_expenses: Challenges about monitoring spending
-        - earn_more: Challenges about increasing income
+Return JSON:
+{{
+    "title": "3-6 word catchy title",
+    "challenge": "Specific actionable challenge",
+    "difficulty": "easy|medium|hard", 
+    "category": "save_money|invest_money|spend_less|track_expenses|earn_more",
+    "xp_reward": 50,
+    "time_to_complete": "1 day|1 week|1 month",
+    "goal_recommendation": "How this helps",
+    "tips": ["Tip 1", "Tip 2", "Tip 3"]
+}}
 
-        If user has a specific goal (like "buy a laptop for $1000"), make the challenge directly related to achieving that goal.
-        Make the challenge specific to their spending patterns and financial situation.
-        """
+Make it creative and varied - think investing, coffee savings, journaling, side hustles, etc."""
         
         try:
             response = requests.post(
@@ -59,26 +53,61 @@ class GeminiClient:
                 json={
                     "contents": [{"parts": [{"text": prompt}]}],
                     "generationConfig": {
-                        "maxOutputTokens": 200,
-                        "temperature": 0.7
+                        "maxOutputTokens": 2000,
+                        "temperature": 1.2
                     }
                 },
-                timeout=10
+                timeout=30
             )
             
             if response.status_code == 200:
                 result = response.json()
-                challenge_text = result["candidates"][0]["content"]["parts"][0]["text"]
+                self.logger.info(f"Gemini API response: {result}")  # Debug logging
                 
-                # Try to parse JSON response
+                # Handle different response structures
                 try:
-                    challenge_data = json.loads(challenge_text.strip())
-                    return challenge_data
-                except json.JSONDecodeError:
-                    # If JSON parsing fails, return structured fallback
+                    if "candidates" in result and len(result["candidates"]) > 0:
+                        candidate = result["candidates"][0]
+                        
+                        # Check if Gemini hit token limit FIRST
+                        if candidate.get("finishReason") == "MAX_TOKENS":
+                            self.logger.error(f"Gemini hit MAX_TOKENS limit: {result}")
+                            return self._get_fallback_challenge(user_profile, user_goal)
+                        
+                        # Check if content has parts
+                        if "content" in candidate and "parts" in candidate["content"] and len(candidate["content"]["parts"]) > 0:
+                            challenge_text = candidate["content"]["parts"][0]["text"]
+                        elif "text" in candidate:
+                            challenge_text = candidate["text"]
+                        else:
+                            self.logger.error(f"Unexpected response structure: {result}")
+                            return self._get_fallback_challenge(user_profile, user_goal)
+                    else:
+                        self.logger.error(f"No candidates in response: {result}")
+                        return self._get_fallback_challenge(user_profile, user_goal)
+                    
+                    # Clean up the response text
+                    challenge_text = challenge_text.strip()
+                    if challenge_text.startswith("```json"):
+                        challenge_text = challenge_text[7:]
+                    if challenge_text.endswith("```"):
+                        challenge_text = challenge_text[:-3]
+                    challenge_text = challenge_text.strip()
+                    
+                    # Try to parse JSON response
+                    try:
+                        challenge_data = json.loads(challenge_text)
+                        self.logger.info(f"Successfully parsed challenge: {challenge_data}")
+                        return challenge_data
+                    except json.JSONDecodeError as e:
+                        self.logger.error(f"JSON parsing failed: {e}, raw text: {challenge_text}")
+                        return self._get_fallback_challenge(user_profile, user_goal)
+                        
+                except KeyError as e:
+                    self.logger.error(f"KeyError accessing response: {e}, response: {result}")
                     return self._get_fallback_challenge(user_profile, user_goal)
             else:
-                self.logger.error(f"Gemini API error: {response.text}")
+                self.logger.error(f"Gemini API error: {response.status_code} - {response.text}")
                 return self._get_fallback_challenge(user_profile, user_goal)
                 
         except Exception as e:
@@ -86,50 +115,108 @@ class GeminiClient:
             return self._get_fallback_challenge(user_profile, user_goal)
     
     def _get_fallback_challenge(self, user_profile, user_goal=None):
+        import random
+        
         balance = user_profile.get('balance', 0)
         transaction_count = user_profile.get('transaction_count', 0)
         recent_spending = user_profile.get('recent_spending', 0)
         
-        if balance > 1000:
-            return {
-                "challenge": f"Great! You have ${balance}. Try saving $100 this week!",
+        # Create a diverse set of interesting challenges
+        challenge_options = [
+            {
+                "title": "Invest $50 in Stocks",
+                "challenge": "Research and invest $50 in a stock you believe in. Use apps like Robinhood, Webull, or your bank's investment platform. Track it for a week!",
+                "difficulty": "medium",
+                "category": "invest_money",
+                "xp_reward": 75,
+                "time_to_complete": "1 week",
+                "goal_recommendation": "Builds wealth and investment knowledge",
+                "tips": ["Start with index funds", "Research company fundamentals", "Don't panic sell"]
+            },
+            {
+                "title": "Coffee Money Challenge",
+                "challenge": "Skip coffee shop purchases for 5 days and make coffee at home. Calculate how much you saved and put it in savings!",
                 "difficulty": "easy",
                 "category": "save_money",
                 "xp_reward": 50,
-                "time_to_complete": "1 week",
-                "goal_recommendation": "This helps build your emergency fund",
-                "tips": ["Set up automatic transfers", "Track your progress daily", "Celebrate small wins"]
-            }
-        elif transaction_count > 10:
-            return {
-                "challenge": f"You've made {transaction_count} transactions. Try reducing to 5 this week!",
-                "difficulty": "medium",
-                "category": "spend_less",
-                "xp_reward": 75,
-                "time_to_complete": "1 week",
-                "goal_recommendation": "Fewer transactions mean less impulse spending",
-                "tips": ["Plan purchases in advance", "Use a shopping list", "Wait 24 hours before buying"]
-            }
-        elif recent_spending > 500:
-            return {
-                "challenge": f"You spent ${recent_spending} recently. Try to spend under $200 this week!",
-                "difficulty": "hard",
-                "category": "spend_less",
-                "xp_reward": 100,
-                "time_to_complete": "1 week",
-                "goal_recommendation": "Reducing spending helps you reach your financial goals faster",
-                "tips": ["Cook at home more", "Cancel unused subscriptions", "Find free entertainment"]
-            }
-        else:
-            return {
-                "challenge": "Track every expense for the next 3 days!",
+                "time_to_complete": "5 days",
+                "goal_recommendation": "Builds consistent saving habits",
+                "tips": ["Buy quality beans", "Make it a morning ritual", "Track your savings"]
+            },
+            {
+                "title": "Side Hustle Research",
+                "challenge": "Research 3 potential side hustles you could start this month. Write down startup costs, time requirements, and potential income.",
+                "difficulty": "easy",
+                "category": "earn_more",
+                "xp_reward": 60,
+                "time_to_complete": "3 days",
+                "goal_recommendation": "Increases earning potential",
+                "tips": ["Consider your skills", "Check local opportunities", "Start small"]
+            },
+            {
+                "title": "Financial Journal Week",
+                "challenge": "Keep a financial journal for 7 days. Write about your money emotions, spending triggers, and financial goals.",
                 "difficulty": "easy",
                 "category": "track_expenses",
-                "xp_reward": 25,
-                "time_to_complete": "3 days",
-                "goal_recommendation": "Understanding your spending is the first step to financial control",
-                "tips": ["Use a spending app", "Keep receipts", "Review daily"]
+                "xp_reward": 50,
+                "time_to_complete": "1 week",
+                "goal_recommendation": "Improves money mindset",
+                "tips": ["Write daily", "Be honest", "Look for patterns"]
+            },
+            {
+                "title": "Subscription Audit",
+                "challenge": "Review all your subscriptions and cancel at least 2 you don't use. Calculate annual savings!",
+                "difficulty": "easy",
+                "category": "save_money",
+                "xp_reward": 40,
+                "time_to_complete": "1 day",
+                "goal_recommendation": "Eliminates wasteful spending",
+                "tips": ["Check bank statements", "Set calendar reminders", "Negotiate better rates"]
+            },
+            {
+                "title": "Micro-Investment Day",
+                "challenge": "Invest $25 in a micro-investment app like Acorns or Stash. Set up automatic round-ups from purchases.",
+                "difficulty": "easy",
+                "category": "invest_money",
+                "xp_reward": 60,
+                "time_to_complete": "1 day",
+                "goal_recommendation": "Makes investing effortless",
+                "tips": ["Start small", "Enable round-ups", "Choose conservative portfolio"]
+            },
+            {
+                "title": "No-Spend Weekend",
+                "challenge": "Have a completely free weekend - no purchases except essentials. Plan free activities like hiking, reading, or cooking.",
+                "difficulty": "medium",
+                "category": "spend_less",
+                "xp_reward": 65,
+                "time_to_complete": "2 days",
+                "goal_recommendation": "Breaks spending habits",
+                "tips": ["Plan activities in advance", "Invite friends", "Cook at home"]
+            },
+            {
+                "title": "Skill Monetization",
+                "challenge": "List 5 skills you have that others might pay for. Research how to turn one into income this month.",
+                "difficulty": "medium",
+                "category": "earn_more",
+                "xp_reward": 70,
+                "time_to_complete": "1 week",
+                "goal_recommendation": "Creates new income streams",
+                "tips": ["Think creatively", "Check freelance sites", "Start with friends"]
             }
+        ]
+        
+        # Select a random challenge based on user's financial situation
+        if balance > 5000:
+            # High balance - focus on investing and advanced challenges
+            investing_challenges = [c for c in challenge_options if c["category"] == "invest_money"]
+            return random.choice(investing_challenges + challenge_options[:2])
+        elif balance > 1000:
+            # Medium balance - mix of saving and investing
+            return random.choice(challenge_options)
+        else:
+            # Low balance - focus on earning and saving
+            earning_saving = [c for c in challenge_options if c["category"] in ["earn_more", "save_money"]]
+            return random.choice(earning_saving + challenge_options[:3])
     
     def parse_goal(self, goal_text):
         try:
@@ -164,26 +251,43 @@ class GeminiClient:
                 f"{self.base_url}/models/gemini-2.5-flash:generateContent?key={self.api_key}",
                 json=payload,
                 headers={"Content-Type": "application/json"},
-                timeout=10
+                timeout=30
             )
             
             if response.status_code == 200:
                 result = response.json()
-                response_text = result["candidates"][0]["content"]["parts"][0]["text"]
                 
-                # Clean up the response text
-                response_text = response_text.strip()
-                if response_text.startswith("```json"):
-                    response_text = response_text[7:]
-                if response_text.endswith("```"):
-                    response_text = response_text[:-3]
-                response_text = response_text.strip()
-                
-                parsed_goal = json.loads(response_text)
-                print(f"DEBUG: Gemini parsed goal '{goal_text}' -> {parsed_goal}")  # Debug logging
-                return parsed_goal
+                # Handle different response structures
+                try:
+                    if "candidates" in result and len(result["candidates"]) > 0:
+                        candidate = result["candidates"][0]
+                        if "content" in candidate and "parts" in candidate["content"]:
+                            response_text = candidate["content"]["parts"][0]["text"]
+                        elif "text" in candidate:
+                            response_text = candidate["text"]
+                        else:
+                            self.logger.error(f"Unexpected response structure: {result}")
+                            return self._get_fallback_goal_parsing(goal_text)
+                    else:
+                        self.logger.error(f"No candidates in response: {result}")
+                        return self._get_fallback_goal_parsing(goal_text)
+                    
+                    # Clean up the response text
+                    response_text = response_text.strip()
+                    if response_text.startswith("```json"):
+                        response_text = response_text[7:]
+                    if response_text.endswith("```"):
+                        response_text = response_text[:-3]
+                    response_text = response_text.strip()
+                    
+                    parsed_goal = json.loads(response_text)
+                    print(f"DEBUG: Gemini parsed goal '{goal_text}' -> {parsed_goal}")  # Debug logging
+                    return parsed_goal
+                except (KeyError, json.JSONDecodeError) as e:
+                    self.logger.error(f"Error parsing goal response: {e}, response: {result}")
+                    return self._get_fallback_goal_parsing(goal_text)
             else:
-                self.logger.error(f"Gemini API error for goal parsing: {response.text}")
+                self.logger.error(f"Gemini API error for goal parsing: {response.status_code} - {response.text}")
                 return self._get_fallback_goal_parsing(goal_text)
                 
         except Exception as e:
@@ -366,7 +470,7 @@ class GeminiClient:
                 json={
                     "contents": [{"parts": [{"text": prompt}]}],
                     "generationConfig": {
-                        "maxOutputTokens": 10,
+                        "maxOutputTokens": 500,
                         "temperature": 0.3
                     }
                 },
@@ -402,27 +506,181 @@ class GeminiClient:
                 json={
                     "contents": [{"parts": [{"text": prompt}]}],
                     "generationConfig": {
-                        "maxOutputTokens": 300,
+                        "maxOutputTokens": 2000,
                         "temperature": 0.8
                     }
                 },
-                timeout=10
+                timeout=30
             )
             
             if response.status_code == 200:
                 result = response.json()
-                response_text = result["candidates"][0]["content"]["parts"][0]["text"]
                 
-                # Try to parse JSON response
+                # Handle different response structures
                 try:
-                    return json.loads(response_text.strip())
-                except json.JSONDecodeError:
-                    # If JSON parsing fails, return raw text
-                    return {"message": response_text}
+                    if "candidates" in result and len(result["candidates"]) > 0:
+                        candidate = result["candidates"][0]
+                        if "content" in candidate and "parts" in candidate["content"]:
+                            response_text = candidate["content"]["parts"][0]["text"]
+                        elif "text" in candidate:
+                            response_text = candidate["text"]
+                        else:
+                            self.logger.error(f"Unexpected response structure: {result}")
+                            return {"error": "Unexpected response structure"}
+                    else:
+                        self.logger.error(f"No candidates in response: {result}")
+                        return {"error": "No candidates in response"}
+                    
+                    # Clean up the response text
+                    response_text = response_text.strip()
+                    if response_text.startswith("```json"):
+                        response_text = response_text[7:]
+                    if response_text.endswith("```"):
+                        response_text = response_text[:-3]
+                    response_text = response_text.strip()
+                    
+                    # Try to parse JSON response
+                    try:
+                        return json.loads(response_text)
+                    except json.JSONDecodeError:
+                        # If JSON parsing fails, return raw text
+                        return {"message": response_text}
+                except KeyError as e:
+                    self.logger.error(f"KeyError accessing response: {e}, response: {result}")
+                    return {"error": f"KeyError: {e}"}
             else:
-                self.logger.error(f"Gemini API error: {response.text}")
+                self.logger.error(f"Gemini API error: {response.status_code} - {response.text}")
                 return {"error": "Failed to generate response"}
                 
         except Exception as e:
             self.logger.error(f"Error making request to Gemini: {e}")
             return {"error": f"Request failed: {str(e)}"}
+
+    def generate_additional_tasks(self, user_context):
+        """Generate 3 additional micro-tasks based on user's financial situation"""
+        balance = user_context.get('balance', 0)
+        recent_transactions = user_context.get('recent_transactions', [])
+        user_goal = user_context.get('user_goal', 'No goal set')
+
+        prompt = f"""
+        Generate 3 quick actionable micro-tasks for a user based on their financial situation:
+        - Current balance: ${balance}
+        - Recent transactions: {recent_transactions}
+        - User goal: {user_goal}
+
+        Return a JSON array with this exact structure:
+        [
+          {{
+            "id": 1,
+            "icon": "💡",
+            "title": "Short task title (2-3 words)",
+            "description": "Brief actionable description (under 50 chars)"
+          }},
+          {{
+            "id": 2,
+            "icon": "📊", 
+            "title": "Short task title",
+            "description": "Brief actionable description"
+          }},
+          {{
+            "id": 3,
+            "icon": "🎯",
+            "title": "Short task title", 
+            "description": "Brief actionable description"
+          }}
+        ]
+
+        Tasks should be:
+        - Quick (5-15 minutes to complete)
+        - Actionable (specific steps user can take)
+        - Relevant to their spending patterns or goal
+        - Use appropriate emojis: 💡📊🎯💰📱🛒💳📈📉⚡🔍
+
+        Examples of good tasks:
+        - Review Subscriptions: "Cancel unused streaming services"
+        - Check Spending: "Review last week's coffee expenses"  
+        - Mini Challenge: "Skip one purchase today, save $10"
+        """
+
+        try:
+            response = requests.post(
+                f"{self.base_url}/models/gemini-2.5-flash:generateContent",
+                headers={
+                    "x-goog-api-key": self.api_key,
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {
+                        "maxOutputTokens": 1000,
+                        "temperature": 0.7
+                    }
+                },
+                timeout=30
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                
+                # Handle different response structures
+                try:
+                    if "candidates" in result and len(result["candidates"]) > 0:
+                        candidate = result["candidates"][0]
+                        if "content" in candidate and "parts" in candidate["content"]:
+                            tasks_text = candidate["content"]["parts"][0]["text"]
+                        elif "text" in candidate:
+                            tasks_text = candidate["text"]
+                        else:
+                            self.logger.error(f"Unexpected response structure: {result}")
+                            return self._get_fallback_tasks()
+                    else:
+                        self.logger.error(f"No candidates in response: {result}")
+                        return self._get_fallback_tasks()
+                    
+                    # Clean up the response
+                    tasks_text = tasks_text.strip()
+                    if tasks_text.startswith("```json"):
+                        tasks_text = tasks_text[7:]
+                    if tasks_text.endswith("```"):
+                        tasks_text = tasks_text[:-3]
+                    tasks_text = tasks_text.strip()
+
+                    try:
+                        tasks = json.loads(tasks_text)
+                        return tasks
+                    except json.JSONDecodeError as e:
+                        self.logger.error(f"JSON parsing failed: {e}, raw text: {tasks_text}")
+                        return self._get_fallback_tasks()
+                except KeyError as e:
+                    self.logger.error(f"KeyError accessing response: {e}, response: {result}")
+                    return self._get_fallback_tasks()
+            else:
+                self.logger.error(f"Gemini API error: {response.status_code} - {response.text}")
+                return self._get_fallback_tasks()
+                
+        except Exception as e:
+            self.logger.error(f"Error generating additional tasks: {e}")
+            return self._get_fallback_tasks()
+
+    def _get_fallback_tasks(self):
+        """Fallback tasks if Gemini fails"""
+        return [
+            {
+                "id": 1,
+                "icon": "💡",
+                "title": "Review Subscriptions",
+                "description": "Check for unused monthly subscriptions"
+            },
+            {
+                "id": 2, 
+                "icon": "📊",
+                "title": "Analyze Spending",
+                "description": "Review last week's top categories"
+            },
+            {
+                "id": 3,
+                "icon": "🎯", 
+                "title": "Daily Save",
+                "description": "Skip one purchase, save $5-10"
+            }
+        ]

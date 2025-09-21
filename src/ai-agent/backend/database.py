@@ -50,10 +50,36 @@ def set_goal(user_id: str, goal_text: str):
     conn.commit(); conn.close()
 
 def get_latest_goal(user_id: str):
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("SELECT goal_text, status, created_at FROM goals WHERE user_id=? ORDER BY id DESC LIMIT 1", (user_id,))
-    row = cur.fetchone(); conn.close()
-    return dict(row) if row else None
+    try:
+        print(f"Database: Getting goal for user {user_id}")
+        conn = get_conn()
+        cur = conn.cursor()
+        
+        # First check if the goals table exists
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='goals'")
+        table_exists = cur.fetchone()
+        print(f"Goals table exists: {table_exists is not None}")
+        
+        if not table_exists:
+            print("Goals table doesn't exist, initializing database...")
+            conn.close()
+            init_db()
+            conn = get_conn()
+            cur = conn.cursor()
+        
+        cur.execute("SELECT goal_text, status, created_at FROM goals WHERE user_id=? ORDER BY id DESC LIMIT 1", (user_id,))
+        row = cur.fetchone()
+        print(f"Database query result: {row}")
+        conn.close()
+        return dict(row) if row else None
+    except Exception as e:
+        print(f"Database error in get_latest_goal: {str(e)}")
+        print(f"Database path: {DB_PATH}")
+        try:
+            conn.close()
+        except:
+            pass
+        raise e
 
 def save_challenge(user_id: str, challenge: dict):
     conn = get_conn(); cur = conn.cursor()

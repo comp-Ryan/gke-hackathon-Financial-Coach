@@ -23,6 +23,9 @@ function GoalBar({ bankAPI, sticky = false }) {
   const [isGeminiLoading, setIsGeminiLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showCancelSuccess, setShowCancelSuccess] = useState(false);
+  const [settingActiveGoal, setSettingActiveGoal] = useState(null);
+  const [addingNewGoal, setAddingNewGoal] = useState(false);
 
   const fetchGoal = useCallback(async () => {
     setLoading(true);
@@ -83,7 +86,8 @@ function GoalBar({ bankAPI, sticky = false }) {
       localStorage.setItem('savedAmount', '0');
     } catch (error) {
       console.error('Error setting goal:', error);
-      alert('Failed to set goal. Please try again.');
+      const message = error.userFriendly ? error.message : 'Failed to set goal. Please try again.';
+      alert(message);
     } finally {
       setSettingGoal(false);
     }
@@ -163,15 +167,15 @@ function GoalBar({ bankAPI, sticky = false }) {
     setSavedGoals(updatedGoals);
     localStorage.setItem('savedGoals', JSON.stringify(updatedGoals));
     
-    // If there are other saved goals, show the goal manager automatically
-    if (updatedGoals.length > 0) {
-      setShowGoalManager(true);
-      setExpanded(true); // Ensure modal stays expanded to show goal manager
-    } else {
-      // No goals left, close everything
-      setShowGoalManager(false);
-      setExpanded(false);
-    }
+    // Always keep modal open and show goal manager
+    setShowGoalManager(true);
+    setExpanded(true); // Always keep modal expanded
+    
+    // Show success notification popup
+    setShowCancelSuccess(true);
+    setTimeout(() => {
+      setShowCancelSuccess(false);
+    }, 3000); // Hide after 3 seconds
     
     // Could also call API to delete goal from backend if needed
   };
@@ -200,8 +204,12 @@ function GoalBar({ bankAPI, sticky = false }) {
     
     console.log('Deleting goal:', goalToDelete?.text, 'Remaining goals:', updatedGoals.length);
     
+    // Update state and localStorage immediately
     setSavedGoals(updatedGoals);
     localStorage.setItem('savedGoals', JSON.stringify(updatedGoals));
+    
+    // Force a re-render by updating a dummy state
+    setShowDeleteConfirm(null);
     
     // If we deleted the active goal, set another goal as active or clear active goal
     if (goalToDelete?.isActive) {
@@ -210,26 +218,26 @@ function GoalBar({ bankAPI, sticky = false }) {
         const newActiveGoal = updatedGoals[0];
         setActiveGoal(newActiveGoal);
       } else {
-        // No goals left, clear everything and close goal manager
+        // No goals left, clear goal data but KEEP modal open for goal creation
         setGoal(null);
         setParsedGoal(null);
         setProgress(0);
         setSavedAmount(0);
-        setShowGoalManager(false);
-        setExpanded(false);
+        setShowGoalManager(false); // Show goal creation interface instead
+        setExpanded(true); // KEEP MODAL OPEN!
         localStorage.removeItem('goalProgress');
         localStorage.removeItem('savedAmount');
       }
     }
     
-    // If no goals left at all, also clear everything (in case non-active goal was deleted)
+    // If no goals left at all, also clear everything but KEEP modal open
     if (updatedGoals.length === 0) {
       setGoal(null);
       setParsedGoal(null);
       setProgress(0);
       setSavedAmount(0);
-      setShowGoalManager(false);
-      setExpanded(false);
+      setShowGoalManager(false); // Show goal creation interface
+      setExpanded(true); // KEEP MODAL OPEN!
       localStorage.removeItem('goalProgress');
       localStorage.removeItem('savedAmount');
     }
@@ -238,6 +246,7 @@ function GoalBar({ bankAPI, sticky = false }) {
   };
 
   const setActiveGoal = async (savedGoal) => {
+    setSettingActiveGoal(savedGoal.id);
     try {
       const data = await bankAPI.setGoal(savedGoal.text);
       setGoal(savedGoal.text);
@@ -266,6 +275,10 @@ function GoalBar({ bankAPI, sticky = false }) {
       localStorage.setItem('savedGoals', JSON.stringify(updatedGoals));
     } catch (error) {
       console.error('Error setting active goal:', error);
+      const message = error.userFriendly ? error.message : 'Failed to set goal as active. Please try again.';
+      alert(message);
+    } finally {
+      setSettingActiveGoal(null);
     }
   };
 
@@ -308,6 +321,7 @@ function GoalBar({ bankAPI, sticky = false }) {
   const addNewGoalToList = async () => {
     if (!newGoalInput.trim()) return;
     
+    setAddingNewGoal(true);
     try {
       const emoji = await getGoalEmoji(newGoalInput);
       // Parse the goal through the backend to get proper amount
@@ -318,10 +332,19 @@ function GoalBar({ bankAPI, sticky = false }) {
       saveGoalToList(newGoalInput, finalParsedData);
       setNewGoalInput('');
     } catch (error) {
+      console.error('Error adding goal:', error);
       // Save even if parsing fails
-      const emoji = await getGoalEmoji(newGoalInput);
-      saveGoalToList(newGoalInput, { description: newGoalInput, amount: 0, emoji });
-      setNewGoalInput('');
+      try {
+        const emoji = await getGoalEmoji(newGoalInput);
+        saveGoalToList(newGoalInput, { description: newGoalInput, amount: 0, emoji });
+        setNewGoalInput('');
+      } catch (fallbackError) {
+        console.error('Fallback goal creation failed:', fallbackError);
+        const message = fallbackError.userFriendly ? fallbackError.message : 'Failed to add goal. Please try again.';
+        alert(message);
+      }
+    } finally {
+      setAddingNewGoal(false);
     }
   };
 
@@ -339,6 +362,7 @@ function GoalBar({ bankAPI, sticky = false }) {
     // Sticky mode shows goal manager if there are saved goals, otherwise goal setting interface
     if (sticky) {
       return (
+        <>
         <div className={`goal-sticky no-goal ${expanded ? 'expanded' : 'collapsed'}`}>
           <div className="goal-sticky-header" onClick={() => setExpanded(!expanded)}>
             <div className="goal-sticky-compact">
@@ -350,6 +374,91 @@ function GoalBar({ bankAPI, sticky = false }) {
             </button>
           </div>
           
+          {expanded && showGoalManager && (
+            <div className="goal-manager">
+              {/* Progress bar at top - hide when no goal */}
+              <div className="goal-manager-progress">
+                <div className="goal-sticky-progress">
+                  <div className="goal-sticky-bar">
+                    <div 
+                      className="goal-sticky-fill" 
+                      style={{ width: `0%` }}
+                    />
+                  </div>
+                  <span className="goal-sticky-text">Choose Goal</span>
+                </div>
+                <button 
+                  className="goal-manager-back"
+                  onClick={() => setShowGoalManager(false)}
+                >
+                  ← Back to Goals
+                </button>
+              </div>
+              
+              <div className="goal-list-clean">
+                {savedGoals.length === 0 ? (
+                  <p className="no-goals">No saved goals yet</p>
+                ) : (
+                  savedGoals.map((savedGoal, index) => (
+                    <div key={`${savedGoal.id}-${index}`} className={`goal-item-clean ${savedGoal.isActive ? 'active' : ''} ${savedGoal.completed ? 'completed' : ''}`}>
+                      <div className="goal-item-info">
+                        <span className="goal-item-title">
+                          {savedGoal.completed ? '✅' : (savedGoal.parsed?.emoji || '💰')} {savedGoal.text}
+                        </span>
+                        <span className="goal-item-price">
+                          {savedGoal.completed ? '✅ Completed!' : `$${savedGoal.savedAmount || 0} / $${savedGoal.parsed?.amount || 0}`}
+                        </span>
+                      </div>
+                      <div className="goal-item-buttons">
+                        <button
+                          className={`goal-btn-clean ${savedGoal.completed ? 'completed' : (savedGoal.isActive ? 'active' : 'primary')}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveGoal(savedGoal);
+                          }}
+                          disabled={savedGoal.isActive || savedGoal.completed || settingActiveGoal === savedGoal.id}
+                        >
+                          {settingActiveGoal === savedGoal.id ? '⏳ Setting...' : (savedGoal.completed ? 'Completed' : (savedGoal.isActive ? 'Active' : 'Set Active'))}
+                        </button>
+                        <button
+                          className="goal-btn-clean delete"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowDeleteConfirm(savedGoal.id);
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              
+              <div className="add-goal-section">
+                <input
+                  type="text"
+                  className="goal-input small"
+                  placeholder="Add new goal..."
+                  value={newGoalInput}
+                  onChange={(e) => setNewGoalInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && addNewGoalToList()}
+                />
+                <button
+                  className="goal-btn primary small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    addNewGoalToList();
+                  }}
+                  disabled={!newGoalInput.trim() || isGeminiLoading || addingNewGoal}
+                >
+                  {addingNewGoal ? '⏳ Adding...' : (isGeminiLoading ? '🤖 Generating...' : 'Add Goal')}
+                </button>
+              </div>
+              
+            </div>
+          )}
+
           {expanded && !showGoalManager && (
             <div className="goal-sticky-expanded">
               <div className="goal-input-group">
@@ -374,7 +483,10 @@ function GoalBar({ bankAPI, sticky = false }) {
                 <div className="goal-actions-buttons">
                   <button 
                     className="goal-btn secondary small"
-                    onClick={() => setShowGoalManager(true)}
+                    onClick={(e) => {
+                    e.stopPropagation();
+                    setShowGoalManager(true);
+                  }}
                   >
                     Choose from {savedGoals.length} Saved Goal{savedGoals.length !== 1 ? 's' : ''}
                   </button>
@@ -421,13 +533,20 @@ function GoalBar({ bankAPI, sticky = false }) {
                       <div className="goal-item-buttons">
                         <button
                           className="goal-btn-clean primary"
-                          onClick={() => setActiveGoal(savedGoal)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveGoal(savedGoal);
+                          }}
+                          disabled={settingActiveGoal === savedGoal.id}
                         >
-                          Active
+                          {settingActiveGoal === savedGoal.id ? '⏳ Setting...' : 'Set Active'}
                         </button>
                         <button
                           className="goal-btn-clean delete"
-                          onClick={() => setShowDeleteConfirm(savedGoal.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowDeleteConfirm(savedGoal.id);
+                          }}
                         >
                           Delete
                         </button>
@@ -448,15 +567,100 @@ function GoalBar({ bankAPI, sticky = false }) {
                 />
                 <button
                   className="goal-btn primary small"
-                  onClick={addNewGoalToList}
-                  disabled={!newGoalInput.trim() || isGeminiLoading}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    addNewGoalToList();
+                  }}
+                  disabled={!newGoalInput.trim() || isGeminiLoading || addingNewGoal}
                 >
-                  {isGeminiLoading ? '🤖 Generating...' : 'Add Goal'}
+                  {addingNewGoal ? '⏳ Adding...' : (isGeminiLoading ? '🤖 Generating...' : 'Add Goal')}
                 </button>
               </div>
             </div>
           )}
         </div>
+        
+        {/* CONFIRMATION MODALS - OUTSIDE MAIN MODAL */}
+        {/* Delete Goal Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="modal-overlay" onClick={() => setShowDeleteConfirm(null)}>
+            <div className="confirmation-modal" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>🗑️ Delete Goal</h3>
+              </div>
+              <div className="modal-body">
+                <p>Are you sure you want to permanently delete this goal?</p>
+                <p><strong>{savedGoals.find(g => g.id === showDeleteConfirm)?.text}</strong></p>
+                <p><small>This action cannot be undone.</small></p>
+              </div>
+              <div className="modal-actions">
+                <button 
+                  className="goal-btn secondary"
+                  onClick={() => setShowDeleteConfirm(null)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="goal-btn cancel"
+                  onClick={() => deleteGoalFromList(showDeleteConfirm)}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cancel Goal Confirmation Modal */}
+        {showCancelConfirm && (
+          <div className="modal-overlay" onClick={() => setShowCancelConfirm(false)}>
+            <div className="confirmation-modal" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>❌ Cancel Goal</h3>
+              </div>
+              <div className="modal-body">
+                <p>Are you sure you want to cancel your current goal?</p>
+                <p><strong>{goal}</strong></p>
+                <p><small>Progress will be saved, but this goal will no longer be active.</small></p>
+              </div>
+              <div className="modal-actions">
+                <button 
+                  className="goal-btn secondary"
+                  onClick={() => setShowCancelConfirm(false)}
+                >
+                  Keep Goal
+                </button>
+                <button 
+                  className="goal-btn cancel"
+                  onClick={handleCancelGoal}
+                >
+                  Cancel Goal
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Goal Cancelled Success Popup */}
+        {showCancelSuccess && (
+          <div className="modal-overlay" onClick={() => setShowCancelSuccess(false)}>
+            <div className="success-popup" onClick={e => e.stopPropagation()}>
+              <div className="success-popup-content">
+                <div className="success-icon">✅</div>
+                <h3>Goal Cancelled</h3>
+                <p>Your goal has been cancelled successfully.</p>
+                <p><small>Choose from your saved goals below or create a new one.</small></p>
+                <button 
+                  className="goal-btn primary small"
+                  onClick={() => setShowCancelSuccess(false)}
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        </>
       );
     }
     
@@ -495,6 +699,7 @@ function GoalBar({ bankAPI, sticky = false }) {
   // Sticky mode - compact version
   if (sticky) {
     return (
+      <>
       <div className={`goal-sticky ${expanded ? 'expanded' : 'collapsed'} ${isCompleted ? 'completed' : ''}`}>
         <div className="goal-sticky-header" onClick={() => setExpanded(!expanded)}>
           <div className="goal-sticky-compact">
@@ -576,13 +781,19 @@ function GoalBar({ bankAPI, sticky = false }) {
                 <>
                   <button 
                     className="goal-btn secondary small"
-                    onClick={() => setShowGoalManager(true)}
+                    onClick={(e) => {
+                    e.stopPropagation();
+                    setShowGoalManager(true);
+                  }}
                   >
                     Choose Other Goals
                   </button>
                   <button 
                     className="goal-btn cancel small"
-                    onClick={() => setShowCancelConfirm(true)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowCancelConfirm(true);
+                    }}
                   >
                     Cancel Goal
                   </button>
@@ -591,7 +802,10 @@ function GoalBar({ bankAPI, sticky = false }) {
               {isCompleted && (
                 <button 
                   className="goal-btn secondary small"
-                  onClick={() => setShowGoalManager(true)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowGoalManager(true);
+                  }}
                 >
                   ✅ Goal Complete - Choose Another?
                 </button>
@@ -625,8 +839,8 @@ function GoalBar({ bankAPI, sticky = false }) {
                 {savedGoals.length === 0 ? (
                   <p className="no-goals">No saved goals yet</p>
                 ) : (
-                  savedGoals.map(savedGoal => (
-                    <div key={savedGoal.id} className={`goal-item-clean ${savedGoal.isActive ? 'active' : ''} ${savedGoal.completed ? 'completed' : ''}`}>
+                  savedGoals.map((savedGoal, index) => (
+                    <div key={`${savedGoal.id}-${index}`} className={`goal-item-clean ${savedGoal.isActive ? 'active' : ''} ${savedGoal.completed ? 'completed' : ''}`}>
                       <div className="goal-item-info">
                         <span className="goal-item-title">
                           {savedGoal.completed ? '✅' : (savedGoal.parsed?.emoji || '💰')} {savedGoal.text}
@@ -638,14 +852,20 @@ function GoalBar({ bankAPI, sticky = false }) {
                       <div className="goal-item-buttons">
                         <button
                           className={`goal-btn-clean ${savedGoal.completed ? 'completed' : (savedGoal.isActive ? 'active' : 'primary')}`}
-                          onClick={() => setActiveGoal(savedGoal)}
-                          disabled={savedGoal.isActive || savedGoal.completed}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveGoal(savedGoal);
+                          }}
+                          disabled={savedGoal.isActive || savedGoal.completed || settingActiveGoal === savedGoal.id}
                         >
-                          {savedGoal.completed ? 'Completed' : (savedGoal.isActive ? 'Active' : 'Set Active')}
+                          {settingActiveGoal === savedGoal.id ? '⏳ Setting...' : (savedGoal.completed ? 'Completed' : (savedGoal.isActive ? 'Active' : 'Set Active'))}
                         </button>
                         <button
                           className="goal-btn-clean delete"
-                          onClick={() => setShowDeleteConfirm(savedGoal.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowDeleteConfirm(savedGoal.id);
+                          }}
                         >
                           Delete
                         </button>
@@ -666,75 +886,101 @@ function GoalBar({ bankAPI, sticky = false }) {
                 />
                 <button
                   className="goal-btn primary small"
-                  onClick={addNewGoalToList}
-                  disabled={!newGoalInput.trim() || isGeminiLoading}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    addNewGoalToList();
+                  }}
+                  disabled={!newGoalInput.trim() || isGeminiLoading || addingNewGoal}
                 >
-                  {isGeminiLoading ? '🤖 Generating...' : 'Add Goal'}
+                  {addingNewGoal ? '⏳ Adding...' : (isGeminiLoading ? '🤖 Generating...' : 'Add Goal')}
                 </button>
               </div>
             </div>
           )}
 
-        {/* Delete Confirmation Modal */}
-        {showDeleteConfirm && (
-          <div className="modal-overlay" onClick={() => setShowDeleteConfirm(null)}>
-            <div className="confirmation-modal" onClick={e => e.stopPropagation()}>
-              <div className="modal-header">
-                <h3>🗑️ Delete Goal</h3>
-              </div>
-              <div className="modal-body">
-                <p>Are you sure you want to delete this goal?</p>
-                <p><strong>{savedGoals.find(g => g.id === showDeleteConfirm)?.text}</strong></p>
-                <p><small>This action cannot be undone.</small></p>
-              </div>
-              <div className="modal-actions">
-                <button 
-                  className="goal-btn secondary"
-                  onClick={() => setShowDeleteConfirm(null)}
-                >
-                  Cancel
-                </button>
-                <button 
-                  className="goal-btn cancel"
-                  onClick={() => deleteGoalFromList(showDeleteConfirm)}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Cancel Goal Confirmation Modal */}
-        {showCancelConfirm && (
-          <div className="modal-overlay" onClick={() => setShowCancelConfirm(false)}>
-            <div className="confirmation-modal" onClick={e => e.stopPropagation()}>
-              <div className="modal-header">
-                <h3>❌ Cancel Goal</h3>
-              </div>
-              <div className="modal-body">
-                <p>Are you sure you want to cancel your current goal?</p>
-                <p><strong>{goal}</strong></p>
-                <p><small>Progress will be saved, but this goal will no longer be active.</small></p>
-              </div>
-              <div className="modal-actions">
-                <button 
-                  className="goal-btn secondary"
-                  onClick={() => setShowCancelConfirm(false)}
-                >
-                  Keep Goal
-                </button>
-                <button 
-                  className="goal-btn cancel"
-                  onClick={handleCancelGoal}
-                >
-                  Cancel Goal
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* CONFIRMATION MODALS - OUTSIDE MAIN MODAL */}
+      {/* Delete Goal Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={() => setShowDeleteConfirm(null)}>
+          <div className="confirmation-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>🗑️ Delete Goal</h3>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to delete this goal?</p>
+              <p><strong>{savedGoals.find(g => g.id === showDeleteConfirm)?.text}</strong></p>
+              <p><small>This action cannot be undone.</small></p>
+            </div>
+            <div className="modal-actions">
+              <button 
+                className="goal-btn secondary"
+                onClick={() => setShowDeleteConfirm(null)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="goal-btn cancel"
+                onClick={() => deleteGoalFromList(showDeleteConfirm)}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Goal Confirmation Modal */}
+      {showCancelConfirm && (
+        <div className="modal-overlay" onClick={() => setShowCancelConfirm(false)}>
+          <div className="confirmation-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>❌ Cancel Goal</h3>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to cancel your current goal?</p>
+              <p><strong>{goal}</strong></p>
+              <p><small>Progress will be saved, but this goal will no longer be active.</small></p>
+            </div>
+            <div className="modal-actions">
+              <button 
+                className="goal-btn secondary"
+                onClick={() => setShowCancelConfirm(false)}
+              >
+                Keep Goal
+              </button>
+              <button 
+                className="goal-btn cancel"
+                onClick={handleCancelGoal}
+              >
+                Cancel Goal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Goal Cancelled Success Popup */}
+      {showCancelSuccess && (
+        <div className="modal-overlay" onClick={() => setShowCancelSuccess(false)}>
+          <div className="success-popup" onClick={e => e.stopPropagation()}>
+            <div className="success-popup-content">
+              <div className="success-icon">✅</div>
+              <h3>Goal Cancelled</h3>
+              <p>Your goal has been cancelled successfully.</p>
+              <p><small>Choose from your saved goals below or create a new one.</small></p>
+              <button 
+                className="goal-btn primary small"
+                onClick={() => setShowCancelSuccess(false)}
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      </>
     );
   }
 

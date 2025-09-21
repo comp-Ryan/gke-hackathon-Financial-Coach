@@ -6,7 +6,7 @@ function BankConnection({ onConnect }) {
     userId: '1011226111',
     bankUrl: 'http://34.186.146.83',
     // Default JWT token (the one we got from testing)
-    jwtToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoidGVzdHVzZXIiLCJhY2N0IjoiMTAxMTIyNjExMSIsIm5hbWUiOiJUZXN0IFVzZXIiLCJpYXQiOjE3NTczMDMxNjMsImV4cCI6MTc1NzMwNjc2M30.urIhISrT_GX1gKkKgryob8mosjhY2ZVbrE_6T6jVh6-GUtnxlGzO8wir_XbQqS1RCMk3F1R01o1aF_ga7xpS5GDbvgi_9jMx-hzhj9yBp2nRbfsGFUosegKV0BmHitMOxsi8mj26SZBNSDgQOZwAAGC7xNQn7q5DsARo6GggvoVU0CUWgAG1DFtjfSWhJnTSYtnkbnsCSucyGIkp3t6epkXHK-9cp31Wzaq0Ng_IckLjc4xqnnV93DLRjWLLZ8cxc2DK_eIT6gpVljupOdpWyf9rRPYzr_YRB5b-2WPaVzblfAygUKCbgpPg-uAbr9GsiDUehByh3Abv2xsXydT5HgLAcZu1yy06LMBW7Zm5M99KPWNKagobndHbwqBOoVpQj95pJLG9MJsuN2DKnMZPmh7KtrclThIvj2GXG3PjtUE2TzqiczcDTMJJ_FVwFoSql6gG87_NsIrt7sKqB27r-xkEBSKOAftwlMK7pL7wjX0lEAh6oL60dJylAUrdGERF6f-S6NovIdYBDVFlwiWRikPvhe7jW07UqGJkGj396zMNExXl6EqNhddCTG8FVD8QnA0YJm4agr2RRRbTlRBuvNo2g_J9NYMsQXtSh9_L1tfNtjc9eVt60IivyqWwRQWQpgXgLPnNU_N5Q9pLBlmrZWy1EvkC-ECrGvPphJY0xzI'
+    jwtToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoidGVzdHVzZXIiLCJhY2N0IjoiMTAxMTIyNjExMSIsIm5hbWUiOiJUZXN0IFVzZXIiLCJpYXQiOjE3NTg0MzU0NzIsImV4cCI6MTc1ODQzOTA3Mn0.IMYzqIQPb4Sjc3grw_H-vQ_pZJBE_blDTOCq_xrbpnv64JVRz9MLi8tKYZuw78HzSgacDnSAUYGZHn9WIcHq9mmBw-YjSTnuGmUYcWv4Nvc_DVeDawY96bt4TvSVYwot8c61fNxL3tu0H2ksOAMsvOUJ7GaNV6rt2cILjtHV2OzwF-BQo3EwdmEVUmgvEwC0dVCquVAj40eHRBCZrA6WjGJNQUAsgK56Y15XsNkt6AziNdpIt-lMFhSC941ipJ_6C6QO8EfJ0oHtFHij7E3hijCaQ_RL2rOJYoG_vKNk7nl6nSksoGqFlXUG4iVXGwvoX3JCGeXqHBOs0eRgzjLTMk0md03HBd2wIJoj49i9yJ8Llw0AYZg59in53KoNEwRYquNu1bjUcH6jLPR47Yb-hzAWebDc_68l3PAMfqi5AjLvNPigu7zkmaG2c5zEjrECIiRy8DZ79mykTgTXLU2e_zNbQGtE3PKO_mKIWz9rkh3E1vXmW5RO4Hs_9jYBGGvCI_bX9qHcGDmw1gSdR9sE1OXyODtmot7rGa9sqdBnNYPD0h2O2R5v4h1uQMkonxk0zWieH5sNSQzfBUfVnl-3xcoN6-6jPOsZp1ecggcznRg60fWrSpLzLBzFz5kYZOgqstJgRHLjTnl0RDPMX_dKEN006yrT-0nRwQT32MhaUjg'
   });
 
   const handleConnect = () => {
@@ -16,8 +16,11 @@ function BankConnection({ onConnect }) {
   return (
     <div className="bank-connection">
       <div className="connection-header">
-        <h1>🏦 AI Financial Coach</h1>
-        <p>Get personalized financial challenges powered by AI</p>
+        <div className="connection-brand">
+          <img src="/bankquest-logo.png" alt="BankQuest Logo" className="connection-logo" />
+          <h1>BankQuest</h1>
+        </div>
+        <p>Embark on your financial adventure with AI-powered quests!</p>
       </div>
 
       <div className="connection-modes">
