@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 function ChallengeList({ bankAPI, onXPGained, onChallengeCompleted }) {
   const [challenge, setChallenge] = useState(null);
@@ -6,11 +6,7 @@ function ChallengeList({ bankAPI, onXPGained, onChallengeCompleted }) {
   const [fetchingNew, setFetchingNew] = useState(false);
   const [challengeCompleted, setChallengeCompleted] = useState(false);
 
-  useEffect(() => {
-    fetchChallenge();
-  }, []);
-
-  const fetchChallenge = async () => {
+  const fetchChallenge = useCallback(async () => {
     setLoading(true);
     setChallengeCompleted(false);
     try {
@@ -35,7 +31,11 @@ function ChallengeList({ bankAPI, onXPGained, onChallengeCompleted }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [bankAPI]);
+
+  useEffect(() => {
+    fetchChallenge();
+  }, [fetchChallenge]);
 
   const handleNewChallenge = async () => {
     setFetchingNew(true);
@@ -133,7 +133,7 @@ function ChallengeList({ bankAPI, onXPGained, onChallengeCompleted }) {
           <div className="tips">
             <h4>Tips to Succeed</h4>
             <ul>
-              {challenge.tips.map((tip, index) => (
+              {(challenge?.tips || []).map((tip, index) => (
                 <li key={index}>{tip}</li>
               ))}
             </ul>

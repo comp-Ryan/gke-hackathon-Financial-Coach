@@ -180,6 +180,7 @@ class GeminiClient:
                 response_text = response_text.strip()
                 
                 parsed_goal = json.loads(response_text)
+                print(f"DEBUG: Gemini parsed goal '{goal_text}' -> {parsed_goal}")  # Debug logging
                 return parsed_goal
             else:
                 self.logger.error(f"Gemini API error for goal parsing: {response.text}")
@@ -193,9 +194,25 @@ class GeminiClient:
         """Fallback goal parsing if Gemini fails"""
         import re
         
-        # Extract amount
+        # Extract amount - try multiple patterns
+        amount = 0
+        
+        # Pattern 1: $500, $1,000, etc.
         amount_match = re.search(r'\$([0-9,]+)', goal_text)
-        amount = int(amount_match.group(1).replace(',', '')) if amount_match else 0
+        if amount_match:
+            amount = int(amount_match.group(1).replace(',', ''))
+        else:
+            # Pattern 2: 500 dollars, 1000 dollars
+            dollar_match = re.search(r'([0-9,]+)\s*dollars?', goal_text, re.IGNORECASE)
+            if dollar_match:
+                amount = int(dollar_match.group(1).replace(',', ''))
+            else:
+                # Pattern 3: just numbers like "save 500 for"
+                number_match = re.search(r'(?:save|need|want|goal)\s*([0-9,]+)', goal_text, re.IGNORECASE)
+                if number_match:
+                    amount = int(number_match.group(1).replace(',', ''))
+        
+        print(f"DEBUG: Parsing goal '{goal_text}' -> amount: {amount}")  # Debug logging
         
         # Simple emoji detection
         emoji_match = re.search(r'[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF]', goal_text)
@@ -317,3 +334,95 @@ class GeminiClient:
         """
         
         return self._make_request(prompt)
+
+    def generate_goal_emoji(self, goal_text):
+        """Generate an appropriate emoji for a financial goal"""
+        try:
+            prompt = f"""
+            Generate a single appropriate emoji for this financial goal: "{goal_text}"
+            
+            Rules:
+            - Return ONLY one emoji character
+            - Choose based on the goal's purpose/category
+            - Examples:
+              * vacation/travel: 🌴 or ✈️
+              * car/vehicle: 🚗
+              * house/home: 🏠
+              * phone/tech: 📱
+              * wedding: 💍
+              * emergency fund: 🛡️
+              * education: 🎓
+              * general savings: 💰
+            
+            Just return the emoji character, nothing else.
+            """
+            
+            response = requests.post(
+                f"{self.base_url}/models/gemini-2.5-flash:generateContent",
+                headers={
+                    "x-goog-api-key": self.api_key,
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {
+                        "maxOutputTokens": 10,
+                        "temperature": 0.3
+                    }
+                },
+                timeout=5
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                emoji = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+                
+                # Validate it's a single emoji (basic check)
+                if len(emoji) <= 4 and emoji:  # Emojis can be 1-4 characters
+                    return emoji
+                else:
+                    # Fallback to default
+                    return '💰'
+            else:
+                return '💰'
+                
+        except Exception as e:
+            self.logger.error(f"Error generating emoji: {e}")
+            return '💰'
+
+    def _make_request(self, prompt):
+        """Helper method to make requests to Gemini API"""
+        try:
+            response = requests.post(
+                f"{self.base_url}/models/gemini-2.5-flash:generateContent",
+                headers={
+                    "x-goog-api-key": self.api_key,
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {
+                        "maxOutputTokens": 300,
+                        "temperature": 0.8
+                    }
+                },
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                response_text = result["candidates"][0]["content"]["parts"][0]["text"]
+                
+                # Try to parse JSON response
+                try:
+                    return json.loads(response_text.strip())
+                except json.JSONDecodeError:
+                    # If JSON parsing fails, return raw text
+                    return {"message": response_text}
+            else:
+                self.logger.error(f"Gemini API error: {response.text}")
+                return {"error": "Failed to generate response"}
+                
+        except Exception as e:
+            self.logger.error(f"Error making request to Gemini: {e}")
+            return {"error": f"Request failed: {str(e)}"}
