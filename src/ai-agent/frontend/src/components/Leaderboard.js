@@ -9,7 +9,7 @@ function Leaderboard({ userXP, userLevel, bankAPI, completedChallenges = 0 }) {
     competitor_insight: "You're making great progress",
     motivation_boost: "Keep up the great work!"
   });
-  const [, setUserPosition] = useState(3); // Position in leaderboard
+  const [userPosition, setUserPosition] = useState(3); // Position in leaderboard
 
   useEffect(() => {
     // Mock leaderboard data - in production this would come from your database
@@ -53,25 +53,10 @@ function Leaderboard({ userXP, userLevel, bankAPI, completedChallenges = 0 }) {
   return (
     <div className="leaderboard-section">
       <div className="section-header">
-        <h2>🏆 Leaderboard</h2>
-        <p>{aiContext.position_message}</p>
+        <h2>Leaderboard</h2>
+        <p className="leaderboard-message">#{userPosition} Place</p>
       </div>
       
-      {/* AI-generated insights */}
-      <div className="ai-insights">
-        <div className="insight-card">
-          <h4>💡 Improvement Tip</h4>
-          <p>{aiContext.improvement_tip}</p>
-        </div>
-        <div className="insight-card">
-          <h4>🎯 Weekly Goal</h4>
-          <p>{aiContext.weekly_goal}</p>
-        </div>
-        <div className="insight-card">
-          <h4>🚀 Motivation</h4>
-          <p>{aiContext.motivation_boost}</p>
-        </div>
-      </div>
       
       <div className="leaderboard-list">
         {(leaderboardData || []).map((user, index) => (

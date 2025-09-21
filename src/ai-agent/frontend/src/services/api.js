@@ -7,7 +7,7 @@ class BankAPI {
     this.userId = config.userId;
     
     // AI agent URL - in production this would be your deployed AI agent
-    this.aiAgentUrl = process.env.REACT_APP_AI_AGENT_URL || 'http://192.168.86.224:8080';
+    this.aiAgentUrl = process.env.REACT_APP_AI_AGENT_URL || 'http://localhost:8080';
     
     // Create axios instance with default headers
     this.apiClient = axios.create({
@@ -15,7 +15,9 @@ class BankAPI {
         'Authorization': `Bearer ${this.jwtToken}`,
         'Content-Type': 'application/json'
       },
-      timeout: 10000
+      timeout: 30000, // Increased to 30 seconds
+      retry: 3,
+      retryDelay: 1000
     });
   }
 
@@ -26,7 +28,20 @@ class BankAPI {
       return response.data;
     } catch (error) {
       console.error('Error fetching goal:', error);
-      return { goal: null, parsed_goal: null };
+      
+      // Handle specific error types
+      if (error.code === 'ECONNABORTED') {
+        console.warn('Goal API request timed out - using fallback');
+      } else if (error.response?.status >= 500) {
+        console.warn('Goal API server error - using fallback');
+      }
+      
+      return { 
+        goal: null, 
+        parsed_goal: null,
+        error: error.message,
+        timeout: error.code === 'ECONNABORTED'
+      };
     }
   }
 
@@ -36,6 +51,25 @@ class BankAPI {
       return response.data;
     } catch (error) {
       console.error('Error setting goal:', error);
+      
+      // Provide user-friendly error messages
+      if (error.code === 'ECONNABORTED') {
+        const timeoutError = new Error('Request timed out. The server is taking too long to respond. Please try again.');
+        timeoutError.code = 'TIMEOUT';
+        timeoutError.userFriendly = true;
+        throw timeoutError;
+      } else if (error.response?.status >= 500) {
+        const serverError = new Error('Server error. Please try again in a moment.');
+        serverError.code = 'SERVER_ERROR';
+        serverError.userFriendly = true;
+        throw serverError;
+      } else if (!navigator.onLine) {
+        const networkError = new Error('No internet connection. Please check your network.');
+        networkError.code = 'NETWORK_ERROR';
+        networkError.userFriendly = true;
+        throw networkError;
+      }
+      
       throw error;
     }
   }
@@ -143,6 +177,57 @@ class BankAPI {
       return response.status === 200;
     } catch (error) {
       return false;
+    }
+  }
+
+  async getAdditionalTasks() {
+    try {
+      const response = await this.apiClient.get(`${this.aiAgentUrl}/additional-tasks/${this.userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching additional tasks:', error);
+      // Return fallback tasks if API fails
+      return {
+        tasks: [
+          {
+            id: 1,
+            icon: "💡",
+            title: "Review Subscriptions",
+            description: "Check for unused monthly subscriptions"
+          },
+          {
+            id: 2,
+            icon: "📊",
+            title: "Analyze Spending", 
+            description: "Review last week's top categories"
+          },
+          {
+            id: 3,
+            icon: "🎯",
+            title: "Daily Save",
+            description: "Skip one purchase, save $5-10"
+          }
+        ]
+      };
+    }
+  }
+
+  async getUserProfile() {
+    try {
+      console.log('DEBUG: Calling user profile API:', `${this.aiAgentUrl}/user-profile/${this.userId}`);
+      const response = await this.apiClient.get(`${this.aiAgentUrl}/user-profile/${this.userId}`);
+      console.log('DEBUG: User profile API response:', response.data);
+      console.log('DEBUG: Response status:', response.status);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        url: error.config?.url
+      });
+      throw error; // Re-throw to show the actual error instead of hiding it
     }
   }
 }
