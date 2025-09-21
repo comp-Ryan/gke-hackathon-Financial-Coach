@@ -213,6 +213,26 @@ def create_app():
             
         except Exception as e:
             return jsonify({"error": f"Failed to generate leaderboard context: {str(e)}"}), 500
+
+    @app.route('/generate-emoji', methods=['POST'])
+    def generate_emoji():
+        """Generate an appropriate emoji for a financial goal using Gemini"""
+        try:
+            data = request.get_json()
+            goal = data.get('goal', '')
+            
+            if not goal:
+                return jsonify({'emoji': '💰'})
+            
+            gemini = GeminiClient()
+            emoji = gemini.generate_goal_emoji(goal)
+            
+            return jsonify({'emoji': emoji})
+            
+        except Exception as e:
+            print(f"Error generating emoji: {e}")
+            # Return default emoji
+            return jsonify({'emoji': '💰'})
     
     return app
 

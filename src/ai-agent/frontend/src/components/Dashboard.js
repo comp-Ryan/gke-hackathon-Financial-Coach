@@ -65,7 +65,6 @@ function Dashboard({ bankAPI }) {
 
       {/* Main Content */}
       <main className="main-content">
-        <GoalBar bankAPI={bankAPI} />
         <ChallengeList 
           bankAPI={bankAPI} 
           onXPGained={addXP} 
@@ -73,7 +72,7 @@ function Dashboard({ bankAPI }) {
             const newCount = completedChallenges + 1;
             setCompletedChallenges(newCount);
             localStorage.setItem('completedChallenges', newCount.toString());
-          }} 
+          }}
         />
         
         {/* Gamification Grid */}
@@ -100,6 +99,9 @@ function Dashboard({ bankAPI }) {
           </div>
         </div>
       </main>
+
+      {/* Sticky Goal Indicator - Bottom Right */}
+      <GoalBar bankAPI={bankAPI} sticky={true} />
     </div>
   );
 }

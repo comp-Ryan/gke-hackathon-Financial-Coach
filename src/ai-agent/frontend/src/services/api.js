@@ -7,7 +7,7 @@ class BankAPI {
     this.userId = config.userId;
     
     // AI agent URL - in production this would be your deployed AI agent
-    this.aiAgentUrl = process.env.REACT_APP_AI_AGENT_URL || 'http://localhost:8080';
+    this.aiAgentUrl = process.env.REACT_APP_AI_AGENT_URL || 'http://192.168.86.224:8080';
     
     // Create axios instance with default headers
     this.apiClient = axios.create({

@@ -9,7 +9,7 @@ function Leaderboard({ userXP, userLevel, bankAPI, completedChallenges = 0 }) {
     competitor_insight: "You're making great progress",
     motivation_boost: "Keep up the great work!"
   });
-  const [userPosition, setUserPosition] = useState(3);
+  const [, setUserPosition] = useState(3); // Position in leaderboard
 
   useEffect(() => {
     // Mock leaderboard data - in production this would come from your database
@@ -74,7 +74,7 @@ function Leaderboard({ userXP, userLevel, bankAPI, completedChallenges = 0 }) {
       </div>
       
       <div className="leaderboard-list">
-        {leaderboardData.map((user, index) => (
+        {(leaderboardData || []).map((user, index) => (
           <div 
             key={user.id} 
             className={`leaderboard-item ${user.isCurrentUser ? 'current-user' : ''}`}

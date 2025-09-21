@@ -48,7 +48,7 @@ function AchievementBadges({ userXP, userLevel, completedChallenges = 0, bankAPI
       </div>
       
       <div className="badges-grid">
-        {achievementsData.achievements.map(badge => (
+        {(achievementsData?.achievements || []).map(badge => (
           <div 
             key={badge.id} 
             className={`badge-item ${badge.unlocked ? 'unlocked' : 'locked'}`}
@@ -64,7 +64,7 @@ function AchievementBadges({ userXP, userLevel, completedChallenges = 0, bankAPI
         ))}
       </div>
       
-      {achievementsData.next_milestone && (
+      {achievementsData?.next_milestone && (
         <div className="next-milestone">
           <h4>{achievementsData.next_milestone.emoji} {achievementsData.next_milestone.name}</h4>
           <p>{achievementsData.next_milestone.description}</p>
@@ -73,7 +73,7 @@ function AchievementBadges({ userXP, userLevel, completedChallenges = 0, bankAPI
       )}
       
       <div className="progress-summary">
-        <p>🎖️ Unlocked: <strong>{achievementsData.achievements.filter(a => a.unlocked).length}/{achievementsData.achievements.length}</strong> achievements</p>
+        <p>🎖️ Unlocked: <strong>{(achievementsData?.achievements || []).filter(a => a.unlocked).length}/{(achievementsData?.achievements || []).length}</strong> achievements</p>
       </div>
     </div>
   );

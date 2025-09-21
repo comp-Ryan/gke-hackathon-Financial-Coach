@@ -63,7 +63,7 @@ function StreakTracker({ bankAPI, completedChallenges = 0 }) {
     }
     
     fetchAIMessage();
-  }, [bankAPI, completedChallenges, currentStreak, longestStreak]);
+  }, [bankAPI, completedChallenges, currentStreak, longestStreak, lastActiveDate, today]);
 
   const getStreakEmoji = (streak) => {
     if (streak >= 30) return '🔥🔥🔥';
@@ -73,14 +73,15 @@ function StreakTracker({ bankAPI, completedChallenges = 0 }) {
     return '✨';
   };
 
-  const getMotivationalMessage = (streak) => {
-    if (streak >= 30) return "You're on fire! Incredible dedication!";
-    if (streak >= 14) return "Two weeks strong! Keep it up!";
-    if (streak >= 7) return "One week streak! You're building great habits!";
-    if (streak >= 3) return "Nice momentum! Keep going!";
-    if (streak >= 1) return "Great start! Come back tomorrow!";
-    return "Start your streak today!";
-  };
+  // Moved to AI-generated messages, keeping for fallback
+  // const getMotivationalMessage = (streak) => {
+  //   if (streak >= 30) return "You're on fire! Incredible dedication!";
+  //   if (streak >= 14) return "Two weeks strong! Keep it up!";
+  //   if (streak >= 7) return "One week streak! You're building great habits!";
+  //   if (streak >= 3) return "Nice momentum! Keep going!";
+  //   if (streak >= 1) return "Great start! Come back tomorrow!";
+  //   return "Start your streak today!";
+  // };
 
   return (
     <div className="streak-section">
