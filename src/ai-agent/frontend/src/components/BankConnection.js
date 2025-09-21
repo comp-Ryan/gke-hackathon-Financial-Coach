@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
-function BankConnection({ onConnect }) {
-  const [mode, setMode] = useState('demo'); // 'demo' or 'custom'
+  function BankConnection({ onConnect }) {
+    const [mode, setMode] = useState('demo'); // 'demo' or 'custom'
     const [config, setConfig] = useState({
       userId: 'demo_user',
       bankUrl: 'http://localhost:8080',

@@ -7,12 +7,12 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Default demo configuration - always load dashboard
-    const defaultConfig = {
-      userId: 'demo_user',
-      bankUrl: 'http://localhost:8080',
-      jwtToken: 'your_jwt_token_here'
-    };
+      // Default demo configuration - always load dashboard
+      const defaultConfig = {
+        userId: 'demo_user',
+        bankUrl: 'http://localhost:8080',
+        jwtToken: 'your_jwt_token_here'
+      };
     
     setBankAPI(new BankAPI(defaultConfig));
     setLoading(false);

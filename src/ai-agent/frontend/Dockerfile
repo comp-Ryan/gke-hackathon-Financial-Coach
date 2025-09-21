@@ -6,9 +6,15 @@ RUN npm ci --only=production
 COPY . .
 
 # Set environment variables for React build
+<<<<<<< HEAD
 ARG REACT_APP_AI_AGENT_URL=http://localhost:8080
 ENV REACT_APP_AI_AGENT_URL=$REACT_APP_AI_AGENT_URL
 ENV REACT_APP_BANK_URL=http://localhost:80
+=======
+ARG REACT_APP_AI_AGENT_URL=http://34.94.48.194:8080
+ENV REACT_APP_AI_AGENT_URL=$REACT_APP_AI_AGENT_URL
+ENV REACT_APP_BANK_URL=http://frontend:80
+>>>>>>> d0e866a498243d821f8d358895ff6268792f5cd0
 
 RUN npm run build
 
