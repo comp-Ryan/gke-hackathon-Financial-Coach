@@ -1,4 +1,11 @@
-<h1 align="center">AI Financial Coach</h1>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="src/ai-agent/frontend/public/brand/bankquest-logo-white.png">
+    <img src="src/ai-agent/frontend/public/brand/bankquest-logo-dark.png" alt="BankQuest logo" width="110" height="110">
+  </picture>
+</p>
+
+<h1 align="center">BankQuest: AI Financial Coach</h1>
 
 <p align="center">Gemini-powered savings challenges, added as a new microservice to Google's Bank of Anthos on GKE.</p>
 
@@ -15,6 +22,15 @@
   <img alt="React 18" src="https://img.shields.io/badge/React-18-149ECA?style=flat-square&logo=react&logoColor=white">
   <img alt="SQLite" src="https://img.shields.io/badge/SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white">
 </p>
+
+<p align="center"><b>Contributors</b></p>
+<div align="center">
+<table>
+  <tr>
+    <td align="center"><a href="https://github.com/comp-Ryan"><img src="https://github.com/comp-Ryan.png?size=120" width="72" height="72" alt="Ryan"></a><br/><sub><b>Ryan</b></sub><br/><sub><a href="https://github.com/comp-Ryan">@comp-Ryan</a></sub></td>
+  </tr>
+</table>
+</div>
 
 My part of this repo is the `src/ai-agent/` service. Everything else (accounts, ledger, frontend, Terraform, Kubernetes manifests) comes from Google's [Bank of Anthos](https://github.com/GoogleCloudPlatform/bank-of-anthos) sample, which is why the commit history has many other contributors.
 
