@@ -39,6 +39,11 @@
 </table>
 </div>
 
+<p align="center">
+  <img src="docs/img/bankquest/overview.jpg" alt="BankQuest on top of Bank of Anthos (from the Devpost entry)" width="900"><br/>
+  <sub>BankQuest on top of Bank of Anthos (from the Devpost entry)</sub>
+</p>
+
 My part of this repo is the `src/ai-agent/` service. Everything else (accounts, ledger, frontend, Terraform, Kubernetes manifests) comes from Google's [Bank of Anthos](https://github.com/GoogleCloudPlatform/bank-of-anthos) sample, which is why the commit history has many other contributors.
 
 ## What This Does
@@ -49,6 +54,19 @@ My part of this repo is the `src/ai-agent/` service. Everything else (accounts, 
 - 🎯 **Achievement System**: Earn XP and unlock achievements
 - 🔥 **Streaks and leaderboard**: daily streak messages and leaderboard context, written by Gemini
 - 🏦 **Bank connection**: reads the real Bank of Anthos balance and history when it runs in the cluster, and falls back to demo data locally
+
+<table>
+  <tr>
+    <td><img src="docs/img/bankquest/goals.jpg" alt="Setting a goal"></td>
+    <td><img src="docs/img/bankquest/streaks.jpg" alt="Daily streaks"></td>
+    <td><img src="docs/img/bankquest/achievements.jpg" alt="Achievements"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Setting goals</sub></td>
+    <td align="center"><sub>Streaks</sub></td>
+    <td align="center"><sub>Achievements</sub></td>
+  </tr>
+</table>
 
 ## How it fits together
 
