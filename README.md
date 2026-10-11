@@ -10,7 +10,8 @@
 <p align="center">Gemini-powered savings challenges, added as a new microservice to Google's Bank of Anthos on GKE.</p>
 
 <p align="center">
-  <img alt="GKE hackathon" src="https://img.shields.io/badge/hackathon-GKE%20(Sep%202025)-4285F4?style=flat-square&logo=googlecloud&logoColor=white">
+  <a href="https://gketurns10.devpost.com/"><img alt="GKE Turns 10 Hackathon" src="https://img.shields.io/badge/hackathon-GKE%20Turns%2010-4285F4?style=flat-square&logo=googlecloud&logoColor=white"></a>
+  <a href="https://devpost.com/software/bankquest"><img alt="Devpost" src="https://img.shields.io/badge/Devpost-BankQuest-003E54?style=flat-square&logo=devpost&logoColor=white"></a>
   <a href="https://github.com/comp-Ryan/gke-hackathon-Financial-Coach/actions/workflows/terraform-validate-ci.yaml"><img alt="Terraform validate" src="https://img.shields.io/github/actions/workflow/status/comp-Ryan/gke-hackathon-Financial-Coach/terraform-validate-ci.yaml?branch=main&style=flat-square&label=terraform%20validate"></a>
   <a href="LICENSE"><img alt="Apache 2.0" src="https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square"></a>
 </p>
@@ -21,6 +22,11 @@
   <img alt="Flask" src="https://img.shields.io/badge/Flask-Python-000000?style=flat-square&logo=flask">
   <img alt="React 18" src="https://img.shields.io/badge/React-18-149ECA?style=flat-square&logo=react&logoColor=white">
   <img alt="SQLite" src="https://img.shields.io/badge/SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white">
+</p>
+
+<p align="center">
+  <a href="https://gketurns10.devpost.com/"><img src="src/ai-agent/frontend/public/brand/gke-turns-10.png" alt="GKE Turns 10 Hackathon" width="200"></a><br/>
+  <sub>Built for the <a href="https://gketurns10.devpost.com/">GKE Turns 10 Hackathon</a> · Google Cloud · Sep 2025 · <a href="https://devpost.com/software/bankquest">Devpost entry</a></sub>
 </p>
 
 <p align="center"><b>Contributors</b></p>
@@ -217,4 +223,4 @@ The app runs in demo mode by default with fake data:
 
 ## License
 
-Apache 2.0, inherited from Bank of Anthos (see [LICENSE](LICENSE)). Built as an educational project for a GKE hackathon.
+Apache 2.0, inherited from Bank of Anthos (see [LICENSE](LICENSE)). Built for the GKE Turns 10 Hackathon.
